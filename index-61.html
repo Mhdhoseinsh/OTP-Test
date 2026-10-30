@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>کد تایید پیامکی</title>
+<style>
+  body { font-family: Tahoma, sans-serif; max-width: 360px; margin: 40px auto; padding: 0 16px; }
+  input, button { width: 100%; padding: 10px; margin: 6px 0; font-size: 16px; box-sizing: border-box; }
+  #msg { font-weight: bold; margin-top: 12px; }
+  .ok { color: green; } .err { color: red; }
+</style>
+</head>
+<body>
+
+<h3>تایید شماره موبایل</h3>
+
+<input id="phone" type="tel" placeholder="شماره موبایل (09123456789)" maxlength="11">
+<button id="sendBtn">ارسال کد تایید</button>
+
+<input id="code" type="tel" placeholder="کد تایید را وارد کن" maxlength="6">
+<button id="verifyBtn">بررسی کد</button>
+
+<div id="msg"></div>
+
+<script>
+// ======== تنظیمات (فقط این دو خط را پر کن) ========
+const API_KEY  = "786277426B506A6B2F664A5A5A30586B3742502F6F4830567A6A4F796A2B33494A654D482F5358745465453D";
+const SENDER   = "2000660110"; // شماره فرستنده‌ای که کاوه‌نگار داده
+// ===================================================
+
+let currentCode = null;
+let currentPhone = null;
+let expiresAt = 0;
+let lastSend = 0;
+
+const $ = id => document.getElementById(id);
+function show(text, ok) { const m = $('msg'); m.textContent = text; m.className = ok ? 'ok' : 'err'; }
+
+function normalize(s) {
+  return String(s || '')
+    .replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d))
+    .replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d))
+    .trim();
+}
+
+function randomCode() {
+  const a = new Uint32Array(1);
+  crypto.getRandomValues(a);
+  return String(100000 + (a[0] % 900000));
+}
+
+$('sendBtn').onclick = async () => {
+  const phone = normalize($('phone').value);
+  if (!/^09\d{9}$/.test(phone)) return show('شماره موبایل معتبر نیست', false);
+
+  const wait = Math.ceil((60000 - (Date.now() - lastSend)) / 1000);
+  if (wait > 0) return show(wait + ' ثانیه دیگر دوباره تلاش کن', false);
+
+  const code = randomCode();
+  const message = 'کد تایید شما: ' + code;
+  const url = 'https://api.kavenegar.com/v1/' + API_KEY + '/sms/send.json'
+    + '?receptor=' + encodeURIComponent(phone)
+    + '&sender=' + encodeURIComponent(SENDER)
+    + '&message=' + encodeURIComponent(message);
+
+  show('در حال ارسال...', true);
+  try {
+    const res = await fetch(url);
+    const data = await res.json();
+    if (!data.return || data.return.status !== 200) {
+      return show('خطا در ارسال پیامک: ' + ((data.return && data.return.message) || ''), false);
+    }
+  } catch (e) {
+    // اگر مرورگر به‌خاطر CORS اجازه خواندن پاسخ را نداد، درخواست معمولاً ارسال شده است
+    console.warn('پاسخ قابل خواندن نبود (احتمالاً CORS):', e);
+  }
+
+  currentCode = code;
+  currentPhone = phone;
+  expiresAt = Date.now() + 2 * 60 * 1000;
+  lastSend = Date.now();
+  show('کد تایید ارسال شد', true);
+};
+
+$('verifyBtn').onclick = () => {
+  const phone = normalize($('phone').value);
+  const code = normalize($('code').value);
+  if (!currentCode || phone !== currentPhone) return show('ابتدا کد تایید را درخواست کن', false);
+  if (Date.now() > expiresAt) return show('کد منقضی شده است', false);
+  if (code === currentCode) show('کد تایید درست است ✅', true);
+  else show('کد تایید اشتباه است ❌', false);
+};
+</script>
+</body>
+</html>
