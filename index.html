@@ -58,7 +58,7 @@ $('sendBtn').onclick = async () => {
   if (wait > 0) return show(wait + ' ثانیه دیگر دوباره تلاش کن', false);
 
   const code = randomCode();
-  const message = 'کد تایید شما: ' + code;
+  const message = 'ما در خدمت شماییم\nکد تایید: ' + code;
   const url = 'https://api.kavenegar.com/v1/' + API_KEY + '/sms/send.json'
     + '?receptor=' + encodeURIComponent(phone)
     + '&sender=' + encodeURIComponent(SENDER)
